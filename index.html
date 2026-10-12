@@ -1,0 +1,605 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#111816">
+  <title>fog — a living mirror</title>
+  <style>
+    :root{color-scheme:dark;--cream:#efeae0;--soft:#c9cec6;--glass:rgba(242,245,239,.115)}
+    *{box-sizing:border-box}
+    html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#151b1a;font-family:Inter,ui-sans-serif,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;-webkit-font-smoothing:antialiased}
+    button,input{font:inherit}
+    button{cursor:pointer}
+    #mirror{position:fixed;inset:0;width:100%;height:100%;display:block;background:#1c2220}
+    #camera{position:fixed;width:1px;height:1px;opacity:0;pointer-events:none;left:-10px;top:-10px}
+    #vignette{position:fixed;inset:0;pointer-events:none;background:radial-gradient(ellipse 78% 82% at 50% 43%,transparent 38%,rgba(10,19,18,.29) 100%);display:none}
+    #overlay{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;padding:30px;background:radial-gradient(ellipse at 52% 37%,#56645f 0%,#273631 37%,#131a18 80%);isolation:isolate;transition:opacity .6s ease,visibility .6s ease}
+    #overlay::before{content:"";position:absolute;width:min(88vw,780px);aspect-ratio:1;border-radius:50%;background:radial-gradient(circle,rgba(240,244,229,.19),rgba(201,210,196,.07) 44%,transparent 68%);filter:blur(29px);z-index:-1;top:10%;animation:cloud 11s ease-in-out infinite alternate}
+    #overlay::after{content:"";position:absolute;inset:17px;border:1px solid rgba(249,252,245,.12);border-radius:14px;pointer-events:none}
+    @keyframes cloud{to{transform:translate(5%,-3%) scale(1.15);opacity:.75}}
+    #overlay.hidden{visibility:hidden;opacity:0;pointer-events:none}
+    .intro{position:relative;z-index:1;width:min(520px,100%);text-align:center;color:var(--cream)}
+    .eyebrow{color:#cbd6cb;font-size:10px;font-weight:650;letter-spacing:.35em;text-transform:uppercase;margin-bottom:23px}
+    h1{font-family:Georgia,"Times New Roman",serif;font-size:clamp(112px,21vw,192px);font-weight:400;letter-spacing:-.107em;line-height:.77;margin:0 22px 29px 0;text-shadow:0 3px 45px #d4dace33}
+    .intro h2{font-family:Georgia,"Times New Roman",serif;font-weight:400;font-size:clamp(24px,4.1vw,34px);letter-spacing:-.03em;margin:0 0 16px}
+    .subtitle{font-size:14px;line-height:1.7;max-width:360px;margin:0 auto 30px;color:#d1d9d0}
+    #start{min-height:54px;border-radius:100px;background:#f3f2e9;color:#1d302a;border:1px solid #ffffffb5;padding:0 29px;display:inline-flex;align-items:center;gap:19px;font-weight:650;font-size:13px;box-shadow:0 14px 35px #05100e50;transition:transform .2s,background .2s}
+    #start:hover{background:white;transform:translateY(-2px)}
+    #start:disabled{opacity:.65;cursor:progress;transform:none}
+    #start svg{width:17px;height:17px}
+    #startMessage{font-size:12px;line-height:1.55;color:#e9c9c2;max-width:440px;margin:17px auto 0;min-height:0;white-space:pre-line}
+    .privacy{font-size:11px;line-height:1.65;color:#bdcec3;margin:25px auto 0;max-width:390px}
+    .privacy svg{vertical-align:-2px;margin-right:4px}
+    .permission{margin-top:27px;border-top:1px solid #ffffff24;padding-top:21px;display:flex;align-items:flex-start;gap:13px;justify-content:center;flex-wrap:wrap}
+    .gesture{display:flex;gap:8px;align-items:center;color:#d5ddd2;font-size:11px;white-space:nowrap}
+    .glyph{display:flex;align-items:center;justify-content:center;width:29px;height:29px;border:1px solid #ffffff35;background:#ffffff0e;border-radius:50%;font-size:14px}
+    .bottom-note{position:fixed;bottom:37px;left:0;right:0;text-align:center;color:#becac0;font-size:10px;letter-spacing:.13em;pointer-events:none}
+    #ui{position:fixed;inset:0;pointer-events:none;opacity:0;visibility:hidden;transition:opacity .4s}
+    #ui.visible{opacity:1;visibility:visible}
+    .hud-top{position:absolute;top:calc(28px + env(safe-area-inset-top));left:32px;right:32px;display:flex;justify-content:space-between;align-items:flex-start;gap:20px;color:#fff;text-shadow:0 1px 10px #0008}
+    .hud-brand{display:flex;align-items:center;gap:15px;font-family:Georgia,serif;font-size:27px;letter-spacing:-.075em;line-height:1}
+    .hud-brand .divider{width:1px;height:20px;background:#ffffff7a}
+    .hud-brand small{font-family:ui-sans-serif,system-ui,sans-serif;font-size:9px;font-weight:600;letter-spacing:.2em;text-transform:uppercase;opacity:.8}
+    .hud-status{font-size:10px;letter-spacing:.16em;text-transform:uppercase;display:flex;align-items:center;gap:8px;font-weight:600;white-space:nowrap}
+    .dot{width:7px;height:7px;border-radius:50%;background:#d2e5d2;box-shadow:0 0 13px #f0fff5b0}
+    .dot.dim{background:#b9b4a9;box-shadow:none}
+    .hud-help{position:absolute;left:50%;bottom:calc(38px + env(safe-area-inset-bottom));transform:translateX(-50%);white-space:nowrap;display:flex;gap:10px;align-items:center;font-size:10px;letter-spacing:.025em;color:#f5f5edc9;text-shadow:0 2px 10px #000b}
+    kbd{border:1px solid #ffffff54;border-radius:5px;padding:4px 6px;background:#ffffff18;font-size:10px;font-family:inherit}
+    .pill{position:absolute;left:calc(29px + env(safe-area-inset-left));bottom:calc(30px + env(safe-area-inset-bottom));pointer-events:auto;border:1px solid rgba(255,255,255,.39);border-radius:100px;background:rgba(226,236,228,.13);backdrop-filter:blur(21px) saturate(115%);-webkit-backdrop-filter:blur(21px) saturate(115%);box-shadow:0 5px 30px #0002;display:flex;gap:16px;align-items:center;padding:15px 19px;color:white;font-size:12px}
+    .pill label{font-weight:550;letter-spacing:.02em;text-transform:lowercase}
+    #brush{width:130px;max-width:25vw;accent-color:white;cursor:pointer;height:13px}
+    .shutter{position:absolute;bottom:calc(26px + env(safe-area-inset-bottom));right:calc(29px + env(safe-area-inset-right));pointer-events:auto;width:57px;height:57px;border-radius:50%;border:1px solid #ffffff9d;display:grid;place-items:center;background:#f5f6ed1f;backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);transition:transform .2s,background .2s}
+    .shutter:hover{transform:scale(1.07);background:#f5f6ed35}
+    .shutter .inside{width:37px;height:37px;border-radius:50%;border:3px solid white;display:grid;place-items:center}
+    .shutter .inside::after{content:"";width:22px;height:22px;border-radius:50%;background:white}
+    #hint{position:absolute;top:calc(85px + env(safe-area-inset-top));left:32px;color:#ffffffbd;font-size:11px;letter-spacing:.035em;text-shadow:0 2px 9px #0008;transition:opacity .4s}
+    #alert{position:absolute;top:calc(36px + env(safe-area-inset-top));left:50%;transform:translateX(-50%);border:1px solid #fff6;border-radius:40px;background:#1a2826d9;color:#fff;padding:12px 18px;font-size:12px;max-width:min(86vw,680px);text-align:center;opacity:0;transition:opacity .2s;pointer-events:none}
+    #alert.show{opacity:1}
+    @media(max-width:720px){.hud-top{left:22px;right:22px;top:24px}.hud-status{font-size:9px}.hud-brand{font-size:23px}.hud-brand small{display:none}#hint{left:22px;top:70px;font-size:10px}.hud-help{display:none}.pill{left:15px;bottom:17px;padding:13px 15px;gap:10px}.shutter{right:15px;bottom:15px}.bottom-note{bottom:16px}}
+    @media(prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}}
+  </style>
+  <!-- Exact pinned releases. These load code/models, never webcam frames or microphone audio. -->
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1675469240/hands.js" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_detection@0.4.1646425229/face_detection.js" crossorigin="anonymous"></script>
+</head>
+<body>
+  <video id="camera" autoplay playsinline muted></video>
+  <canvas id="mirror" aria-label="Mirrored live camera with interactive fog"></canvas>
+  <div id="vignette" aria-hidden="true"></div>
+
+  <section id="overlay" aria-label="Start fog mirror">
+    <div class="intro">
+      <div class="eyebrow">an interactive mirror</div>
+      <h1>fog.</h1>
+      <h2>Leave a little trace.</h2>
+      <p class="subtitle">Breathe on the glass. Draw with your fingertips. Sweep it clear with the palm of your hand.</p>
+      <button id="start" type="button"><span>step into the mirror</span><svg fill="none" viewBox="0 0 24 24" aria-hidden="true"><path stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" d="M4 12h15m-6-6 6 6-6 6"/></svg></button>
+      <p id="startMessage" role="alert" aria-live="assertive"></p>
+      <p class="privacy">✦ &nbsp;Your camera, microphone, and images stay on this device. No frames, audio, or data are ever uploaded. MediaPipe code and models load from a CDN.</p>
+      <div class="permission">
+        <div class="gesture"><span class="glyph">◌</span> blow to fog</div>
+        <div class="gesture"><span class="glyph">✳</span> pinch to draw</div>
+        <div class="gesture"><span class="glyph">✊</span> fist to wipe</div>
+      </div>
+    </div>
+    <div class="bottom-note">CAMERA + MICROPHONE ACCESS REQUESTED ON START</div>
+  </section>
+
+  <div id="ui" aria-hidden="true">
+    <div class="hud-top">
+      <div class="hud-brand">fog. <span class="divider"></span> <small>a living mirror</small></div>
+      <div class="hud-status"><span id="liveDot" class="dot"></span><span id="liveStatus">LIVE · ON DEVICE</span></div>
+    </div>
+    <div id="hint">breathe to fog · pinch to draw · fist to wipe</div>
+    <div id="alert" role="status"></div>
+    <div class="pill"><label for="brush">brush</label><input id="brush" aria-label="Brush radius in pixels" type="range" min="7" max="38" value="15" step="1"></div>
+    <div class="hud-help"><kbd>SPACE</kbd> fog <span>·</span> <kbd>C</kbd> reset <span>·</span> <kbd>S</kbd> save <span>·</span> <kbd>ESC</kbd> exit</div>
+    <button class="shutter" type="button" id="save" aria-label="Save a PNG snapshot" title="Save snapshot"><span class="inside"></span></button>
+  </div>
+
+  <script>
+  'use strict';
+  (() => {
+    const HANDS_CDN = 'https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1675469240/';
+    const FACE_CDN = 'https://cdn.jsdelivr.net/npm/@mediapipe/face_detection@0.4.1646425229/';
+    const video = document.getElementById('camera');
+    const canvas = document.getElementById('mirror');
+    const ctx = canvas.getContext('2d', {alpha:false,desynchronized:true});
+    const fog = document.createElement('canvas');
+    const fogCtx = fog.getContext('2d');
+    const frost = document.createElement('canvas');
+    const frostCtx = frost.getContext('2d');
+    const overlay = document.getElementById('overlay');
+    const ui = document.getElementById('ui');
+    const startButton = document.getElementById('start');
+    const startMessage = document.getElementById('startMessage');
+    const brushInput = document.getElementById('brush');
+    const hint = document.getElementById('hint');
+    const alertBox = document.getElementById('alert');
+    const liveStatus = document.getElementById('liveStatus');
+    const liveDot = document.getElementById('liveDot');
+
+    let W = 1, H = 1, dpr = 1, cameraScale = 1, cameraCropX = 0, cameraCropY = 0;
+    let running = false, raf = 0, frameIndex = 0, stream = null;
+    let handModel = null, faceModel = null, handBusy = false, faceBusy = false;
+    let audioContext = null, audioSource = null, analyser = null, audioSamples = null;
+    let micAvailable = false, level = 0, floor = 0, floorReady = false, keySuppressUntil = 0;
+    let spaceHeld = false, brushCss = 15, alertTimeout = 0;
+    let mouthTarget = {x:.5,y:.56}, mouth = {x:.5,y:.56};
+    let handLastSeen = -Infinity, handVisible = false, targetTip = null;
+    let smoothTip = null, brushPoint = null, starPoint = null, strokeAnchor = null, strokePrevious = null;
+    let penDown = false, releasedFrames = 0, isFist = false, fistPose = null;
+    let fistStampPoint = null, fistPreviousPose = null;
+
+    // All drawings and measurements use physical (backing-store) pixels, i.e. CSS px * DPR.
+    function resize() {
+      const old = document.createElement('canvas');
+      if (fog.width && fog.height) { old.width = fog.width; old.height = fog.height; old.getContext('2d').drawImage(fog,0,0); }
+      dpr = Math.min(window.devicePixelRatio || 1,2);
+      W = Math.max(1,Math.round(window.innerWidth*dpr));
+      H = Math.max(1,Math.round(window.innerHeight*dpr));
+      canvas.width = frost.width = fog.width = W;
+      canvas.height = frost.height = fog.height = H;
+      if (old.width) fogCtx.drawImage(old,0,0,W,H);
+      else resetFog();
+      updateCameraGeometry();
+      strokeAnchor = null;
+      strokePrevious = null;
+      fistStampPoint = null;
+      fistPreviousPose = null;
+    }
+
+    function resetFog() {
+      fogCtx.save();
+      fogCtx.globalCompositeOperation = 'source-over';
+      fogCtx.clearRect(0,0,W,H);
+      fogCtx.fillStyle = 'rgba(255,255,255,0.55)';
+      fogCtx.fillRect(0,0,W,H);
+      fogCtx.restore();
+      strokeAnchor = null;
+      strokePrevious = null;
+      fistStampPoint = null;
+    }
+
+    function updateCameraGeometry() {
+      if (!video.videoWidth || !video.videoHeight) return;
+      cameraScale = Math.max(W/video.videoWidth,H/video.videoHeight);
+      cameraCropX = (video.videoWidth*cameraScale-W)/2;
+      cameraCropY = (video.videoHeight*cameraScale-H)/2;
+    }
+
+    function imagePoint(landmark) {
+      // Model receives unmirrored video; drawing and landmarks are mirrored identically.
+      return {
+        x: W - (landmark.x * video.videoWidth * cameraScale - cameraCropX),
+        y: landmark.y * video.videoHeight * cameraScale - cameraCropY
+      };
+    }
+    function distance(a,b) {return Math.hypot(a.x-b.x,a.y-b.y);}
+    function distanceVideo(a,b) {
+      return Math.hypot((a.x-b.x)*video.videoWidth,(a.y-b.y)*video.videoHeight);
+    }
+    function midpoint(a,b) {return {x:(a.x+b.x)/2,y:(a.y+b.y)/2};}
+    function interpolate(a,b,t) {return {x:a.x+(b.x-a.x)*t,y:a.y+(b.y-a.y)*t};}
+
+    // Frost is generated *from the video again* and is then masked by fog alpha.
+    // Fog is never painted as white directly onto the visible canvas.
+    function drawMirroredCamera(target) {
+      const sw = video.videoWidth*cameraScale;
+      const sh = video.videoHeight*cameraScale;
+      target.save();
+      target.translate(W,0);
+      target.scale(-1,1);
+      target.drawImage(video,-cameraCropX,-cameraCropY,sw,sh);
+      target.restore();
+    }
+
+    function drawLayers() {
+      ctx.save();
+      ctx.fillStyle = '#1b2421';
+      ctx.fillRect(0,0,W,H);
+      drawMirroredCamera(ctx); // Layer 1: real mirror
+      frostCtx.save();
+      frostCtx.globalCompositeOperation = 'source-over';
+      frostCtx.clearRect(0,0,W,H);
+      frostCtx.filter = `blur(${18*dpr}px) brightness(1.18)`;
+      drawMirroredCamera(frostCtx);
+      frostCtx.filter = 'none';
+      frostCtx.fillStyle = 'rgba(242,238,231,0.62)';
+      frostCtx.fillRect(0,0,W,H);
+      frostCtx.globalCompositeOperation = 'destination-in';
+      frostCtx.drawImage(fog,0,0); // Layer 2 (hidden density) masks layer 3 (visible frost)
+      frostCtx.restore();
+      ctx.drawImage(frost,0,0);
+      ctx.restore();
+    }
+
+    function stampRadial(x,y,r,alpha,subtract) {
+      if (r<=0) return;
+      fogCtx.save();
+      fogCtx.globalCompositeOperation = subtract ? 'destination-out' : 'source-over';
+      const grad = fogCtx.createRadialGradient(x,y,r*.14,x,y,r);
+      const rgb = '255,255,255';
+      grad.addColorStop(0,`rgba(${rgb},${alpha})`);
+      grad.addColorStop(.4,`rgba(${rgb},${alpha})`);
+      grad.addColorStop(.7,`rgba(${rgb},${alpha*.42})`);
+      grad.addColorStop(1,`rgba(${rgb},0)`);
+      fogCtx.fillStyle = grad;
+      fogCtx.beginPath();
+      fogCtx.arc(x,y,r,0,Math.PI*2);
+      fogCtx.fill();
+      fogCtx.restore();
+    }
+
+    function bloomBreath(strength) {
+      const reach = .43*Math.min(W,H);
+      // A tiny sag below the mouth; the shape is 1.45x wider than tall.
+      const x = mouth.x*W;
+      const y = (mouth.y+.055)*H;
+      for (let i=0;i<12;i++) {
+        const theta = Math.random()*Math.PI*2;
+        const dist = Math.sqrt(Math.random())*reach;
+        const cx = x + Math.cos(theta)*dist;
+        const cy = y + Math.sin(theta)*dist/1.45;
+        const radius = reach*(.18+Math.random()*.31);
+        // The feathering shell runs from ~0.4r to r: blur width ~0.60r.
+        stampRadial(cx,cy,radius,.36*strength,false);
+      }
+    }
+
+    function microphoneLevel(now) {
+      if (!analyser || !audioSamples) return false;
+      analyser.getFloatTimeDomainData(audioSamples);
+      let peak = 0;
+      for (let i=0;i<audioSamples.length;i++) peak = Math.max(peak,Math.abs(audioSamples[i]));
+      level = peak;
+      if (!floorReady) {floor = level;floorReady = true;}
+      else floor += (level<floor ? .05 : .0008)*(level-floor);
+      if (now<keySuppressUntil) return false;
+      // Dynamic floor, tiny threshold, saturating at floor+0.003.
+      return level>floor+.0025;
+    }
+
+    function breathStrength() {
+      return Math.max(0,Math.min(1,(level-floor-.0025)/.0005));
+    }
+
+    function onFaces(result) {
+      if (!running || !result.detections || !result.detections.length) return;
+      // Face Detection's six landmarks: eyes (0,1), nose (2), MOUTH (3), ears (4,5).
+      const mouthLandmark = result.detections[0].landmarks?.[3];
+      if (!mouthLandmark) return;
+      const screen = imagePoint(mouthLandmark);
+      mouthTarget = {x:screen.x/W,y:screen.y/H};
+    }
+
+    function onHands(result) {
+      if (!running) return;
+      const landmarks = result.multiHandLandmarks?.[0];
+      if (!landmarks) {handVisible = false;return;}
+      handVisible = true;
+      handLastSeen = performance.now();
+      targetTip = imagePoint(landmarks[8]);
+      const wrist = landmarks[0];
+      const fingers = [[8,6],[12,10],[16,14],[20,18]];
+      const fistNow = fingers.every(([tip,joint]) => distanceVideo(landmarks[tip],wrist) < distanceVideo(landmarks[joint],wrist));
+
+      // Pinch is invariant to distance from camera, with hysteresis.
+      const pinch = distanceVideo(landmarks[4],landmarks[8]) / Math.max(1,distanceVideo(wrist,landmarks[9]));
+      const indexExtended = distanceVideo(landmarks[8],wrist) > distanceVideo(landmarks[6],wrist)*1.12;
+
+      if (fistNow) {
+        penDown = false; releasedFrames = 0; strokeAnchor = null;strokePrevious = null;
+        isFist = true;
+        const indices = [0,5,9,13,17];
+        const points = indices.map(i=>imagePoint(landmarks[i]));
+        const center = points.reduce((a,p)=>({x:a.x+p.x/points.length,y:a.y+p.y/points.length}),{x:0,y:0});
+        const width = Math.max(distance(imagePoint(landmarks[5]),imagePoint(landmarks[17])),distance(imagePoint(wrist),imagePoint(landmarks[9])));
+        fistPose = {center,radius:Math.max(12*dpr,1.6*width)};
+        return;
+      }
+
+      if (isFist) { fistStampPoint = null; fistPreviousPose = null; }
+      isFist = false;
+      fistPose = null;
+
+      if (penDown) {
+        if (pinch>.38) releasedFrames++;
+        else releasedFrames = 0;
+        if (releasedFrames>=2) {penDown=false;strokeAnchor=null;strokePrevious=null;releasedFrames=0;}
+      } else if (pinch<.22 && indexExtended) {
+        // Index extension is checked ONLY at pen-down; never cancels an active stroke.
+        penDown = true;
+        releasedFrames = 0;
+        smoothTip = {...targetTip};
+        brushPoint = {...targetTip};
+        strokeAnchor = null;strokePrevious=null;
+      }
+    }
+
+    function eraseStroke(point) {
+      const brushRadius = brushCss*dpr;
+      if (!strokeAnchor) {
+        // Initial pin point. Drawing erases fog alpha, never paints a camera/white smear.
+        stampRadial(point.x,point.y,brushRadius*1.45,.98,true);
+        strokeAnchor = {...point};
+        strokePrevious = {...point};
+        return;
+      }
+      if (distance(point,strokePrevious)<.0006*W) return; // trembling finger
+      if (distance(point,strokePrevious)>.3*Math.min(W,H)) {strokeAnchor={...point};strokePrevious={...point};return;}
+      const from = strokePrevious;
+      const mid = midpoint(from,point);
+      fogCtx.save();
+      fogCtx.globalCompositeOperation = 'destination-out';
+      fogCtx.lineCap = 'round';
+      fogCtx.lineJoin = 'round';
+      fogCtx.lineWidth = 2*brushRadius;
+      fogCtx.strokeStyle = 'rgba(0,0,0,0.97)';
+      fogCtx.beginPath();
+      fogCtx.moveTo(strokeAnchor.x,strokeAnchor.y);
+      // Quadratic from the previous midpoint, through the previous point, to the next midpoint.
+      fogCtx.quadraticCurveTo(from.x,from.y,mid.x,mid.y);
+      fogCtx.stroke();
+      fogCtx.restore();
+      stampRadial(mid.x,mid.y,brushRadius*1.42,.84,true);
+      strokeAnchor = mid;
+      strokePrevious = {...point};
+    }
+
+    function eraseFist(pose) {
+      if (!pose) return;
+      const point = pose.center;
+      const radius = pose.radius;
+      if (!fistStampPoint || !fistPreviousPose) {
+        stampRadial(point.x,point.y,radius,.34,true);
+        fistStampPoint={...point};
+        fistPreviousPose={...point};
+        return;
+      }
+      if (distance(fistPreviousPose,point)>.3*Math.min(W,H)) {
+        // Re-acquired hand: don't draw a huge fake slash across the mirror.
+        stampRadial(point.x,point.y,radius,.34,true);
+        fistStampPoint={...point}; fistPreviousPose={...point};
+        return;
+      }
+      const spacing = Math.max(1,radius*.5);
+      const len = distance(fistStampPoint,point);
+      const count = Math.min(40,Math.floor(len/spacing));
+      if (count) {
+        const base = {...fistStampPoint};
+        for (let i=1;i<=count;i++) {
+          const p = interpolate(base,point,(i*spacing)/len);
+          stampRadial(p.x,p.y,radius,.34,true);
+          fistStampPoint=p;
+        }
+      }
+      fistPreviousPose = {...point};
+    }
+
+    function drawStar() {
+      if (!starPoint || !handVisible || !penDown) return;
+      const r = 3.1*dpr;
+      const x = starPoint.x, y = starPoint.y;
+      ctx.save();
+      ctx.globalCompositeOperation = 'screen';
+      ctx.shadowColor = '#fffbe8';ctx.shadowBlur = 16*dpr;
+      ctx.fillStyle = '#fffdfa';
+      ctx.beginPath();ctx.arc(x,y,r,0,Math.PI*2);ctx.fill();
+      ctx.lineWidth = .95*dpr;ctx.strokeStyle='rgba(255,255,250,.94)';
+      ctx.beginPath();
+      ctx.moveTo(x-9*dpr,y);ctx.lineTo(x+9*dpr,y);
+      ctx.moveTo(x,y-9*dpr);ctx.lineTo(x,y+9*dpr);
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    function processGestures(now) {
+      if (now-handLastSeen>250) {
+        // A single lost inference frame is NOT a pen-up.
+        penDown=false; releasedFrames=0; strokeAnchor=null;strokePrevious=null;
+        isFist=false; fistPose=null; fistStampPoint=null; fistPreviousPose=null;
+        handVisible=false;
+      }
+      if (targetTip && handVisible) {
+        if (!smoothTip) smoothTip={...targetTip};
+        else smoothTip=interpolate(smoothTip,targetTip,.45);
+        if (!brushPoint) brushPoint={...smoothTip};
+        else brushPoint=interpolate(brushPoint,smoothTip,.22);
+        if (!starPoint) starPoint={...targetTip};
+        else starPoint=interpolate(starPoint,targetTip,.55);
+      }
+      if (isFist && handVisible) eraseFist(fistPose);
+      else if (penDown && handVisible && brushPoint) eraseStroke(brushPoint);
+    }
+
+    function runInference() {
+      if (!handBusy && handModel) {
+        handBusy=true;
+        handModel.send({image:video}).catch(e=>{fatal(e);throw e;}).finally(()=>{handBusy=false;});
+      }
+      if (frameIndex%5===0 && !faceBusy && faceModel) {
+        faceBusy=true;
+        faceModel.send({image:video}).catch(e=>{fatal(e);throw e;}).finally(()=>{faceBusy=false;});
+      }
+    }
+
+    function frame(now) {
+      if (!running) return;
+      raf=requestAnimationFrame(frame); // One RAF loop; inference never overlaps itself.
+      frameIndex++;
+      if (video.readyState<2 || !video.videoWidth) return;
+      if (frameIndex===1) updateCameraGeometry();
+      mouth.x+=(mouthTarget.x-mouth.x)*.4;
+      mouth.y+=(mouthTarget.y-mouth.y)*.4;
+      processGestures(now);
+      const blow = microphoneLevel(now);
+      const fogStrength = spaceHeld ? 1 : (blow ? breathStrength() : 0);
+      if (!penDown && !isFist && fogStrength>0 && frameIndex%2===0) bloomBreath(fogStrength);
+      drawLayers();
+      drawStar();
+      runInference();
+    }
+
+    function notify(message,ms=2900) {
+      alertBox.textContent=message;
+      alertBox.classList.add('show');
+      clearTimeout(alertTimeout);
+      alertTimeout=setTimeout(()=>alertBox.classList.remove('show'),ms);
+    }
+
+    function fatal(error) {
+      console.error('fog: runtime error',error);
+      stop();
+      startMessage.textContent=`Something stopped the mirror: ${error?.message || String(error)}. Check the browser console and retry.`;
+      startButton.disabled=false;
+      startButton.querySelector('span').textContent='try again';
+    }
+
+    function stop() {
+      running=false;
+      cancelAnimationFrame(raf);
+      if (stream) stream.getTracks().forEach(track=>track.stop());
+      stream=null;
+      video.pause();video.srcObject=null;
+      if (audioContext) {void audioContext.close();audioContext=null;}
+      analyser=null;audioSource=null;audioSamples=null;micAvailable=false;
+      spaceHeld=false; penDown=false;isFist=false;handVisible=false;targetTip=null;
+      strokeAnchor=null;strokePrevious=null;fistStampPoint=null;fistPreviousPose=null;
+      overlay.classList.remove('hidden');
+      ui.classList.remove('visible');ui.setAttribute('aria-hidden','true');
+      document.getElementById('vignette').style.display='none';
+      startButton.disabled=false;
+      startButton.querySelector('span').textContent='step into the mirror';
+    }
+
+    async function initializeModels() {
+      if (handModel && faceModel) return;
+      if (typeof Hands!=='function' || typeof FaceDetection!=='function') {
+        throw new Error('MediaPipe could not load. Connect to the internet to load the two pinned CDN libraries and try again.');
+      }
+      handModel=new Hands({locateFile:file=>HANDS_CDN+file});
+      handModel.setOptions({maxNumHands:1,modelComplexity:1,minDetectionConfidence:.65,minTrackingConfidence:.6,selfieMode:false});
+      handModel.onResults(onHands);
+      faceModel=new FaceDetection({locateFile:file=>FACE_CDN+file});
+      faceModel.setOptions({model:'short',minDetectionConfidence:.55,selfieMode:false});
+      faceModel.onResults(onFaces);
+    }
+
+    async function initializeMic(media) {
+      const audioTrack=media.getAudioTracks()[0];
+      if (!audioTrack) return;
+      const AudioContextCtor=window.AudioContext || window.webkitAudioContext;
+      if (!AudioContextCtor) return;
+      audioContext=new AudioContextCtor();
+      audioSource=audioContext.createMediaStreamSource(media);
+      analyser=audioContext.createAnalyser();
+      analyser.fftSize=2048;
+      analyser.smoothingTimeConstant=0;
+      audioSource.connect(analyser); // Deliberately NOT connected to speakers.
+      audioSamples=new Float32Array(analyser.fftSize);
+      if (audioContext.state==='suspended') await audioContext.resume();
+      micAvailable=true;
+      floorReady=false;
+    }
+
+    async function requestMedia() {
+      const requestedVideo={facingMode:'user',width:{ideal:1280},height:{ideal:720},frameRate:{ideal:30,max:60}};
+      const requestedAudio={echoCancellation:false,noiseSuppression:false,autoGainControl:false};
+      try {
+        return await navigator.mediaDevices.getUserMedia({video:requestedVideo,audio:requestedAudio});
+      } catch (bothError) {
+        console.warn('Camera + mic request failed; trying camera-only mode:',bothError);
+        try {return await navigator.mediaDevices.getUserMedia({video:requestedVideo,audio:false});}
+        catch (cameraError) {
+          console.error('Camera access failed:',cameraError);
+          const error=new Error('Camera access was refused. Allow camera access in your browser settings, then try again.');
+          error.cause=cameraError;
+          throw error;
+        }
+      }
+    }
+
+    async function start() {
+      startMessage.textContent='';
+      const localhost=['localhost','127.0.0.1','[::1]'].includes(location.hostname);
+      if (location.protocol!=='https:' && !(location.protocol==='http:' && localhost)) {
+        startMessage.textContent='Camera access requires HTTPS or localhost. Opening fog.html by double-clicking (file://) will not work. Serve it from localhost instead.';
+        return;
+      }
+      if (!navigator.mediaDevices?.getUserMedia) {
+        startMessage.textContent='This browser does not support camera access. Try a recent Chrome, Edge, or Safari on HTTPS/localhost.';
+        return;
+      }
+      startButton.disabled=true;
+      startButton.querySelector('span').textContent='opening your mirror…';
+      try {
+        stream=await requestMedia(); // The ONLY normal getUserMedia request. No camera_utils.
+        video.srcObject=stream;
+        await video.play();
+        updateCameraGeometry();
+        await initializeMic(stream);
+        await initializeModels();
+        frameIndex=0;
+        mouth={x:.5,y:.56};mouthTarget={x:.5,y:.56};
+        handLastSeen=-Infinity;handVisible=false;penDown=false;isFist=false;
+        smoothTip=null;brushPoint=null;starPoint=null;strokeAnchor=null;strokePrevious=null;
+        fistStampPoint=null;fistPreviousPose=null;
+        resetFog();
+        liveStatus.textContent=micAvailable?'LIVE · ON DEVICE':'LIVE · MIC UNAVAILABLE';
+        liveDot.classList.toggle('dim',!micAvailable);
+        hint.textContent=micAvailable?'breathe to fog · pinch to draw · fist to wipe':'hold Space to fog · pinch to draw · fist to wipe';
+        running=true;
+        overlay.classList.add('hidden');
+        ui.classList.add('visible');ui.setAttribute('aria-hidden','false');
+        document.getElementById('vignette').style.display='block';
+        raf=requestAnimationFrame(frame);
+        if (!micAvailable) notify('Microphone unavailable. Hold Space to create fog.');
+      } catch (error) {
+        console.error('fog: startup failure',error);
+        stop();
+        startMessage.textContent=error.message || 'Unable to open the camera or microphone. Please check permissions.';
+        // Expected permission denials are displayed; unforeseen errors remain visible in the console.
+      }
+    }
+
+    function savePng() {
+      if (!running) return;
+      canvas.toBlob(blob=>{
+        if (!blob) {notify('Could not save PNG.');return;}
+        const objectUrl=URL.createObjectURL(blob);
+        const a=document.createElement('a');
+        const stamp=new Date().toISOString().replace(/[:.]/g,'-');
+        a.href=objectUrl;a.download=`fog-${stamp}.png`;
+        document.body.appendChild(a);a.click();a.remove();
+        setTimeout(()=>URL.revokeObjectURL(objectUrl),1500);
+        notify('A little moment, saved.');
+      },'image/png');
+    }
+
+    startButton.addEventListener('click',start);
+    document.getElementById('save').addEventListener('click',savePng);
+    brushInput.addEventListener('input',()=>{brushCss=Number(brushInput.value);});
+    window.addEventListener('resize',resize);
+    window.addEventListener('keydown',event=>{
+      if (!running) return;
+      keySuppressUntil=performance.now()+300;
+      if (event.code==='Space') {event.preventDefault();spaceHeld=true;}
+      if (event.repeat && event.code!=='Space') return;
+      if (event.key.toLowerCase()==='c') {resetFog();notify('The glass is fogged fresh.');}
+      if (event.key.toLowerCase()==='s') savePng();
+      if (event.key==='Escape') stop();
+    });
+    window.addEventListener('keyup',event=>{
+      if (event.code==='Space') {spaceHeld=false;keySuppressUntil=performance.now()+300;}
+    });
+    window.addEventListener('blur',()=>{spaceHeld=false;});
+    document.addEventListener('visibilitychange',()=>{if(document.hidden)spaceHeld=false;});
+    window.addEventListener('error',event=>{if(running)fatal(event.error||new Error(event.message));});
+    window.addEventListener('unhandledrejection',event=>{if(running)fatal(event.reason);});
+    resize();
+  })();
+  </script>
+</body>
+</html>
